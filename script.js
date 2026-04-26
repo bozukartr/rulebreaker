@@ -1,11 +1,11 @@
 /**
  * RULE BREAKER - Premium Logic Puzzle
- * v2.7 - Firebase Cloud Edition
+ * v2.9.1 - Bugfix Edition (Restored Timer Logic)
  */
 
 import { initializeApp } from "firebase/app";
 import { getAuth, signInAnonymously, onAuthStateChanged } from "firebase/auth";
-import { getFirestore, doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
+import { getFirestore, doc, getDoc, setDoc } from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAc3UHoN1eGOYvnCeTGbzK6jBwA5LnKWEA",
@@ -17,7 +17,6 @@ const firebaseConfig = {
   measurementId: "G-Q8V8DWXZ58"
 };
 
-// Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
@@ -34,13 +33,16 @@ const CONFIG = {
 
 class Game {
     constructor() {
-        // Local state first
         this.currentLevelNumber = parseInt(localStorage.getItem('rulebreaker_level_num')) || 1;
         this.ruleHistory = JSON.parse(localStorage.getItem('rulebreaker_history')) || [];
         this.starsData = JSON.parse(localStorage.getItem('rulebreaker_stars')) || {};
         this.ruleStars = JSON.parse(localStorage.getItem('rulebreaker_rule_stars')) || {};
         this.discoveredRules = new Set(JSON.parse(localStorage.getItem('rulebreaker_codex')) || []);
         
+        this.dailyTrophies = parseInt(localStorage.getItem('rulebreaker_daily_count')) || 0;
+        this.lastDailyDate = localStorage.getItem('rulebreaker_last_daily') || '';
+        this.isDailyMode = false;
+
         this.gridSize = 4;
         this.cells = [];
         this.correctCellsFound = 0;
@@ -48,16 +50,22 @@ class Game {
         this.isLevelComplete = false;
         this.isGameStarted = false;
         
+        // Anti-Cheat State
+        this.consecutiveWrong = 0;
+        this.lastClickTime = 0;
+        this.wrongClicksThisLevel = 0;
+
         this.timeLeft = CONFIG.INITIAL_TIME;
         this.timerInterval = null;
         this.audioCtx = null;
         this.rulesPool = this.initRulesPool();
+        this.dailyRulesPool = this.initDailyRulesPool();
         this.currentRule = null;
         this.currentRuleIndex = -1;
         this.user = null;
 
-        // UI Binding
         this.dom = {
+            appShell: document.querySelector('.app-shell'),
             menu: document.getElementById('main-menu'),
             game: document.getElementById('game-screen'),
             codex: document.getElementById('rules-screen'),
@@ -76,6 +84,10 @@ class Game {
             ruleDesc: document.getElementById('rule-text'),
             starsContainer: document.getElementById('stars-display'),
             startBtn: document.getElementById('start-game-btn'),
+            dailyBtn: document.getElementById('daily-challenge-btn'),
+            dailyStatus: document.getElementById('daily-status'),
+            dailyTimer: document.getElementById('daily-countdown'),
+            dailyCountDisplay: document.getElementById('daily-trophies'),
             howToBtn: document.getElementById('how-to-play-btn'),
             codexBtn: document.getElementById('view-rules-btn'),
             resetBtn: document.getElementById('reset-progress'),
@@ -98,17 +110,13 @@ class Game {
 
         this.init();
         this.initAuth();
+        this.startDailyTimer();
     }
 
     async initAuth() {
         onAuthStateChanged(auth, async (user) => {
-            if (user) {
-                this.user = user;
-                console.log("Authenticated as:", user.uid);
-                await this.syncFromCloud();
-            } else {
-                signInAnonymously(auth).catch((error) => console.error("Auth failed:", error));
-            }
+            if (user) { this.user = user; await this.syncFromCloud(); }
+            else { signInAnonymously(auth).catch((error) => console.error("Auth failed:", error)); }
         });
     }
 
@@ -121,12 +129,11 @@ class Game {
                 stars: this.starsData,
                 ruleStars: this.ruleStars,
                 codex: Array.from(this.discoveredRules),
+                dailyCount: this.dailyTrophies,
+                lastDailyDate: this.lastDailyDate,
                 lastUpdated: new Date().getTime()
             }, { merge: true });
-            console.log("Cloud synced successfully.");
-        } catch (e) {
-            console.error("Cloud sync failed:", e);
-        }
+        } catch (e) { console.error("Cloud sync failed:", e); }
     }
 
     async syncFromCloud() {
@@ -136,19 +143,18 @@ class Game {
             const snap = await getDoc(userDoc);
             if (snap.exists()) {
                 const data = snap.data();
-                // Merge cloud data if it's newer or local is empty
-                if (data.level > this.currentLevelNumber) {
-                    this.currentLevelNumber = data.level;
+                if ((data.level || 0) > this.currentLevelNumber || (data.dailyCount || 0) > this.dailyTrophies) {
+                    this.currentLevelNumber = data.level || 1;
                     this.starsData = data.stars || {};
                     this.ruleStars = data.ruleStars || {};
                     this.discoveredRules = new Set(data.codex || []);
+                    this.dailyTrophies = data.dailyCount || 0;
+                    this.lastDailyDate = data.lastDailyDate || '';
                     this.saveLocal();
                     this.initMenu();
                 }
             }
-        } catch (e) {
-            console.error("Cloud fetch failed:", e);
-        }
+        } catch (e) { console.error("Cloud fetch failed:", e); }
     }
 
     saveLocal() {
@@ -156,18 +162,21 @@ class Game {
         localStorage.setItem('rulebreaker_stars', JSON.stringify(this.starsData));
         localStorage.setItem('rulebreaker_rule_stars', JSON.stringify(this.ruleStars));
         localStorage.setItem('rulebreaker_codex', JSON.stringify(Array.from(this.discoveredRules)));
+        localStorage.setItem('rulebreaker_daily_count', this.dailyTrophies);
+        localStorage.setItem('rulebreaker_last_daily', this.lastDailyDate);
     }
 
     init() {
         this.initMenu();
         this.dom.startBtn.onclick = () => { this.playSound('click'); this.startGame(); };
+        this.dom.dailyBtn.onclick = () => { this.playSound('click'); this.startDailyChallenge(); };
         this.dom.howToBtn.onclick = () => { this.playSound('click'); this.dom.tutModal.classList.remove('hidden'); };
         this.dom.codexBtn.onclick = () => { this.playSound('click'); this.openCodex(); };
         this.dom.closeTut.onclick = () => { this.playSound('click'); this.dom.tutModal.classList.add('hidden'); };
         this.dom.resetBtn.onclick = () => { this.playSound('click'); this.openResetAuth(); };
         this.dom.cancelReset.onclick = () => { this.playSound('click'); this.dom.resetModal.classList.add('hidden'); };
         this.dom.closePreview.onclick = () => { this.playSound('click'); this.dom.previewModal.classList.add('hidden'); };
-        this.dom.nextBtn.onclick = () => { this.playSound('click'); this.nextLevel(); };
+        this.dom.nextBtn.onclick = () => { this.playSound('click'); this.isDailyMode ? this.backToMenu() : this.nextLevel(); };
         this.dom.retryBtn.onclick = () => { this.playSound('click'); this.startLevel(); };
         this.dom.homeBtn.onclick = () => { this.playSound('click'); this.backToMenu(); };
         this.dom.winHomeBtn.onclick = () => { this.playSound('click'); this.backToMenu(); };
@@ -178,20 +187,56 @@ class Game {
 
     initMenu() {
         const totalStars = Object.values(this.starsData).reduce((a, b) => a + b, 0);
-        const starEl = document.getElementById('total-stars');
-        if (starEl) starEl.innerText = totalStars;
-
-        const ratioEl = document.getElementById('discovered-ratio');
-        if (ratioEl) ratioEl.innerText = `${this.discoveredRules.size}/${CONFIG.TOTAL_RULES}`;
-
-        const levelSub = document.getElementById('level-subtitle');
-        if (levelSub) {
-            levelSub.innerText = this.currentLevelNumber > 1 ? `Seviye ${this.currentLevelNumber}` : 'YENİ BAŞLA';
+        this.dom.appShell.querySelector('#total-stars').innerText = totalStars;
+        this.dom.appShell.querySelector('#discovered-ratio').innerText = `${this.discoveredRules.size}/${CONFIG.TOTAL_RULES}`;
+        this.dom.dailyCountDisplay.innerText = this.dailyTrophies;
+        this.dom.appShell.querySelector('#level-subtitle').innerText = this.currentLevelNumber > 1 ? `Seviye ${this.currentLevelNumber}` : 'YENİ BAŞLA';
+        
+        const today = new Date().toISOString().split('T')[0];
+        if (this.lastDailyDate === today) {
+            this.dom.dailyStatus.innerText = "Bugün tamamlandı!";
+            this.dom.dailyBtn.classList.add('completed');
+            this.dom.dailyBtn.style.opacity = '0.6';
+        } else {
+            this.dom.dailyStatus.innerText = "Bugün henüz tamamlanmadı";
+            this.dom.dailyBtn.classList.remove('completed');
+            this.dom.dailyBtn.style.opacity = '1';
         }
     }
 
+    startDailyTimer() {
+        setInterval(() => {
+            const now = new Date();
+            const tomorrow = new Date(now);
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            tomorrow.setHours(0, 0, 0, 0);
+            const diff = tomorrow - now;
+            const h = Math.floor(diff / 3600000).toString().padStart(2, '0');
+            const m = Math.floor((diff % 3600000) / 60000).toString().padStart(2, '0');
+            const s = Math.floor((diff % 60000) / 1000).toString().padStart(2, '0');
+            this.dom.dailyTimer.innerText = `${h}:${m}:${s}`;
+        }, 1000);
+    }
+
+    startDailyChallenge() {
+        const today = new Date().toISOString().split('T')[0];
+        if (this.lastDailyDate === today) return;
+        this.isDailyMode = true;
+        this.dom.appShell.classList.add('daily-mode');
+        this.dom.menu.classList.add('hidden');
+        this.dom.game.classList.remove('hidden');
+        this.gridSize = 6;
+        const seed = parseInt(today.replace(/-/g, ''));
+        const index = seed % this.dailyRulesPool.length;
+        this.currentRule = this.dailyRulesPool[index];
+        this.currentRuleIndex = -1;
+        this.startLevelLogic();
+        this.dom.feedback.innerText = "GÜNLÜK ÖZEL KURAL";
+    }
+
     startGame() {
-        this.isGameStarted = true;
+        this.isDailyMode = false;
+        this.dom.appShell.classList.remove('daily-mode');
         this.dom.menu.classList.add('hidden');
         this.dom.game.classList.remove('hidden');
         this.startLevel();
@@ -200,6 +245,8 @@ class Game {
     backToMenu() {
         this.stopTimer();
         this.isGameStarted = false;
+        this.isDailyMode = false;
+        this.dom.appShell.classList.remove('daily-mode');
         this.dom.game.classList.add('hidden');
         this.dom.codex.classList.add('hidden');
         this.dom.winModal.classList.add('hidden');
@@ -208,44 +255,22 @@ class Game {
         this.initMenu();
     }
 
-    openCodex() {
-        this.dom.menu.classList.add('hidden');
-        this.dom.codex.classList.remove('hidden');
-        this.renderCodex();
-    }
+    openCodex() { this.dom.menu.classList.add('hidden'); this.dom.codex.classList.remove('hidden'); this.renderCodex(); }
 
     renderCodex() {
         this.dom.codexList.innerHTML = '';
         this.dom.discoveredCount.innerText = this.discoveredRules.size;
-        const totalEl = document.getElementById('total-rules-count');
-        if (totalEl) totalEl.innerText = CONFIG.TOTAL_RULES;
-
-        const ruleEntries = this.rulesPool.map((rule, index) => ({
-            rule, index, isDiscovered: this.discoveredRules.has(index), stars: this.ruleStars[index] || 0
-        }));
-
-        ruleEntries.sort((a, b) => {
-            if (a.isDiscovered === b.isDiscovered) return a.index - b.index;
-            return a.isDiscovered ? -1 : 1;
-        });
-
+        document.getElementById('total-rules-count').innerText = CONFIG.TOTAL_RULES;
+        const ruleEntries = this.rulesPool.map((rule, index) => ({ rule, index, isDiscovered: this.discoveredRules.has(index), stars: this.ruleStars[index] || 0 }));
+        ruleEntries.sort((a, b) => (a.isDiscovered === b.isDiscovered) ? a.index - b.index : (a.isDiscovered ? -1 : 1));
         ruleEntries.forEach((entry) => {
             const { rule, index, isDiscovered, stars } = entry;
             const item = document.createElement('div');
             item.className = `rule-item ${isDiscovered ? 'unlocked' : 'locked'}`;
             let starHTML = '';
             for(let i=1; i<=3; i++) starHTML += `<span class="mini-star ${i <= stars ? 'active' : ''}"><i class="fas fa-star"></i></span>`;
-            item.innerHTML = `
-                <div class="rule-num">${index + 1}</div>
-                <div class="rule-info">
-                    <div class="rule-name">${isDiscovered ? rule.desc : '??????????'}</div>
-                    <div class="rule-status">${isDiscovered ? 'KEŞFEDİLDİ' : 'BİLİNMİYOR'} ${isDiscovered ? `<div class="mini-stars">${starHTML}</div>` : ''}</div>
-                </div>
-                ${isDiscovered ? '<div class="rule-check"><i class="fas fa-check-circle"></i></div>' : '<div class="rule-lock"><i class="fas fa-lock"></i></div>'}
-            `;
-            if (isDiscovered) {
-                item.onclick = () => { this.playSound('click'); this.showRulePreview(index); };
-            }
+            item.innerHTML = `<div class="rule-num">${index + 1}</div><div class="rule-info"><div class="rule-name">${isDiscovered ? rule.desc : '??????????'}</div><div class="rule-status">${isDiscovered ? 'KEŞFEDİLDİ' : 'BİLİNMİYOR'} ${isDiscovered ? `<div class="mini-stars">${starHTML}</div>` : ''}</div></div>${isDiscovered ? '<div class="rule-check"><i class="fas fa-check-circle"></i></div>' : '<div class="rule-lock"><i class="fas fa-lock"></i></div>'}`;
+            if (isDiscovered) item.onclick = () => { this.playSound('click'); this.showRulePreview(index); };
             this.dom.codexList.appendChild(item);
         });
     }
@@ -255,45 +280,28 @@ class Game {
         this.dom.previewTitle.innerText = `Kural #${ruleIndex + 1}`;
         this.dom.previewDesc.innerText = rule.desc;
         this.dom.previewBoard.innerHTML = '';
-        
         const size = 4;
         this.dom.previewBoard.className = 'mini-grid preview-grid';
-        
-        let mockCells = [];
-        let validSample = false;
-        let attempts = 0;
+        let mockCells = []; let validSample = false; let attempts = 0;
         while(!validSample && attempts < 10) {
-            mockCells = [];
-            let matches = 0;
+            mockCells = []; let matches = 0;
             for (let i = 0; i < size * size; i++) {
-                const c = {
-                    row: Math.floor(i/size), col: i%size, gridSize: size,
-                    color: CONFIG.COLORS[Math.floor(Math.random() * CONFIG.COLORS.length)],
-                    shape: CONFIG.SHAPES[Math.floor(Math.random() * CONFIG.SHAPES.length)]
-                };
-                c.isMatch = rule.check(c, mockCells);
-                if (c.isMatch) matches++;
+                const c = { row: Math.floor(i/size), col: i%size, gridSize: size, color: CONFIG.COLORS[Math.floor(Math.random() * CONFIG.COLORS.length)], shape: CONFIG.SHAPES[Math.floor(Math.random() * CONFIG.SHAPES.length)] };
+                c.isMatch = rule.check(c, mockCells); if (c.isMatch) matches++;
                 mockCells.push(c);
             }
             if (matches > 0 && matches < size * size) validSample = true;
             attempts++;
         }
-
         mockCells.forEach(c => {
-            const cellEl = document.createElement('div');
-            cellEl.className = `cell ${c.isMatch ? 'active' : ''} cell-${c.color}`;
-            const s = document.createElement('div');
-            s.className = `shape ${c.shape}`;
-            cellEl.appendChild(s);
+            const cellEl = document.createElement('div'); cellEl.className = `cell ${c.isMatch ? 'active' : ''} cell-${c.color}`;
+            const s = document.createElement('div'); s.className = `shape ${c.shape}`; cellEl.appendChild(s);
             this.dom.previewBoard.appendChild(cellEl);
         });
         this.dom.previewModal.classList.remove('hidden');
     }
 
-    openResetAuth() {
-        this.dom.resetModal.classList.remove('hidden');
-        this.generateResetPuzzle();
-    }
+    openResetAuth() { this.dom.resetModal.classList.remove('hidden'); this.generateResetPuzzle(); }
 
     generateResetPuzzle() {
         this.dom.resetBoard.innerHTML = '';
@@ -303,19 +311,15 @@ class Game {
         let correctCount = 0; let foundCount = 0;
         for (let i = 0; i < 9; i++) {
             const color = CONFIG.COLORS[Math.floor(Math.random() * CONFIG.COLORS.length)];
-            const isCorrect = color === targetColor;
-            if (isCorrect) correctCount++;
-            const cell = document.createElement('div');
-            cell.className = `cell cell-${color}`;
+            const isCorrect = color === targetColor; if (isCorrect) correctCount++;
+            const cell = document.createElement('div'); cell.className = `cell cell-${color}`;
             cell.onclick = () => {
                 this.playSound('click');
                 if (isCorrect) {
                     if (cell.classList.contains('found')) return;
                     cell.classList.add('found'); foundCount++; this.playSound('correct');
                     if (foundCount === correctCount) this.executeReset();
-                } else {
-                    this.playSound('wrong'); this.dom.resetModal.classList.add('hidden');
-                }
+                } else { this.playSound('wrong'); this.dom.resetModal.classList.add('hidden'); }
             };
             this.dom.resetBoard.appendChild(cell);
         }
@@ -325,21 +329,198 @@ class Game {
     async executeReset() {
         this.playSound('win');
         if (this.user) {
-            try {
-                const userDoc = doc(db, "users", this.user.uid);
-                await setDoc(userDoc, { 
-                    level: 1, 
-                    stars: {}, 
-                    ruleStars: {}, 
-                    codex: [],
-                    lastUpdated: new Date().getTime()
-                }, { merge: true });
-            } catch (e) {
-                console.error("Cloud reset failed:", e);
-            }
+            const userDoc = doc(db, "users", this.user.uid);
+            await setDoc(userDoc, { level: 1, stars: {}, ruleStars: {}, codex: [], dailyCount: 0, lastDailyDate: '' }, { merge: true });
         }
-        localStorage.clear();
-        location.reload();
+        localStorage.clear(); location.reload();
+    }
+
+    startLevel() {
+        this.dom.winModal.classList.add('hidden'); this.dom.overModal.classList.add('hidden');
+        let index;
+        do { index = Math.floor(Math.random() * this.rulesPool.length); } while (this.ruleHistory.includes(index));
+        this.ruleHistory.push(index);
+        if (this.ruleHistory.length > CONFIG.HISTORY_LIMIT) this.ruleHistory.shift();
+        this.currentRuleIndex = index;
+        this.currentRule = this.rulesPool[index];
+        this.gridSize = this.currentLevelNumber >= 15 ? 5 : 4;
+        this.startLevelLogic();
+        this.dom.feedback.innerText = "Gizli kuralı keşfet...";
+        this.dom.feedback.style.color = "var(--text-muted)";
+    }
+
+    startLevelLogic() {
+        this.isLevelComplete = false; this.correctCellsFound = 0; this.consecutiveWrong = 0;
+        this.wrongClicksThisLevel = 0; this.isGameStarted = true;
+        this.generateGrid(); this.updateStats(); this.startTimer();
+    }
+
+    generateGrid() {
+        this.dom.board.innerHTML = '';
+        this.dom.board.className = this.gridSize === 4 ? 'grid-4x4' : (this.gridSize === 5 ? 'grid-5x5' : 'grid-6x6');
+        let valid = false;
+        while (!valid) {
+            this.cells = []; this.totalCorrectCells = 0;
+            for (let i = 0; i < this.gridSize * this.gridSize; i++) {
+                this.cells.push({ index: i, row: Math.floor(i/this.gridSize), col: i%this.gridSize, gridSize: this.gridSize, color: CONFIG.COLORS[Math.floor(Math.random() * CONFIG.COLORS.length)], shape: CONFIG.SHAPES[Math.floor(Math.random() * CONFIG.SHAPES.length)], isFound: false });
+            }
+            this.cells.forEach(c => { c.isCorrect = this.currentRule.check(c, this.cells); if (c.isCorrect) this.totalCorrectCells++; });
+            if (this.totalCorrectCells >= 2 && this.totalCorrectCells <= (this.gridSize*this.gridSize - 5)) valid = true;
+        }
+        this.cells.forEach((c, idx) => {
+            const el = document.createElement('div'); el.className = `cell cell-${c.color}`; el.style.animationDelay = `${idx * 0.01}s`;
+            const s = document.createElement('div'); s.className = `shape ${c.shape}`; el.appendChild(s);
+            el.onclick = () => this.handleCellClick(c, el); this.dom.board.appendChild(el);
+        });
+    }
+
+    handleCellClick(cell, el) {
+        if (!this.isGameStarted || this.isLevelComplete || cell.isFound || this.timeLeft <= 0) return;
+        this.lastClickTime = Date.now(); this.playSound('click');
+        if (cell.isCorrect) {
+            this.consecutiveWrong = 0; cell.isFound = true; el.classList.add('found'); this.correctCellsFound++; this.playSound('correct');
+            if (this.correctCellsFound === this.totalCorrectCells) this.completeLevel();
+        } else {
+            this.wrongClicksThisLevel++; this.consecutiveWrong++;
+            const penaltySequence = [3, 4, 5, 7, 10, 15, 20, 30, 45, 60];
+            const penalty = penaltySequence[Math.min(this.consecutiveWrong - 1, penaltySequence.length - 1)];
+            el.classList.add('wrong'); this.playSound('wrong'); 
+            this.timeLeft = Math.max(0, this.timeLeft - penalty); this.updateTimerUI();
+            setTimeout(() => el.classList.remove('wrong'), 400); 
+            this.dom.feedback.innerText = `HATA! -${penalty}s`; this.dom.feedback.style.color = "var(--danger)";
+        }
+    }
+
+    completeLevel() {
+        this.isLevelComplete = true; this.stopTimer();
+        this.dom.ruleDesc.innerText = this.currentRule.desc;
+        let stars = 1;
+        if (this.wrongClicksThisLevel <= 2 && this.timeLeft > 80) stars = 3;
+        else if (this.wrongClicksThisLevel <= 5 && this.timeLeft > 40) stars = 2;
+        if (this.isDailyMode) { this.lastDailyDate = new Date().toISOString().split('T')[0]; this.dailyTrophies++; }
+        else {
+            this.discoveredRules.add(this.currentRuleIndex);
+            this.starsData[this.currentLevelNumber] = Math.max(this.starsData[this.currentLevelNumber] || 0, stars);
+            this.ruleStars[this.currentRuleIndex] = Math.max(this.ruleStars[this.currentRuleIndex] || 0, stars);
+        }
+        this.saveLocal(); this.syncToCloud(); this.playSound('win');
+        setTimeout(() => { this.showStars(this.isDailyMode ? 3 : stars); this.dom.winModal.classList.remove('hidden'); this.winFX(); }, 400);
+    }
+
+    showStars(count) {
+        const stars = this.dom.starsContainer.querySelectorAll('.star');
+        stars.forEach((s, i) => { s.classList.remove('active'); if (i < count) setTimeout(() => s.classList.add('active'), i * 200 + 300); });
+    }
+
+    nextLevel() { this.currentLevelNumber++; this.saveLocal(); this.syncToCloud(); this.startLevel(); }
+
+    updateStats() { 
+        this.dom.level.innerText = this.isDailyMode ? "DAILY" : this.currentLevelNumber.toString().padStart(2, '0'); 
+        const progress = (this.currentLevelNumber % 10) * 10 || 100; 
+        this.dom.progressBar.style.width = this.isDailyMode ? "100%" : `${progress}%`; 
+    }
+
+    startTimer() {
+        this.stopTimer(); this.timeLeft = CONFIG.INITIAL_TIME; this.updateTimerUI();
+        this.timerInterval = setInterval(() => { this.timeLeft--; this.updateTimerUI(); if (this.timeLeft <= 0) this.handleTimeUp(); }, 1000);
+    }
+
+    stopTimer() { if (this.timerInterval) { clearInterval(this.timerInterval); this.timerInterval = null; } }
+
+    updateTimerUI() {
+        this.dom.timerText.innerText = Math.max(0, this.timeLeft);
+        const offset = CONFIG.TIMER_CIRUMFERENCE - (this.timeLeft / CONFIG.INITIAL_TIME) * CONFIG.TIMER_CIRUMFERENCE;
+        this.dom.timerProgress.style.strokeDashoffset = offset;
+        if (this.timeLeft <= 20) this.dom.timerContainer.classList.add('danger');
+        else this.dom.timerContainer.classList.remove('danger');
+    }
+
+    handleTimeUp() { this.stopTimer(); this.playSound('wrong'); this.dom.overModal.classList.remove('hidden'); }
+
+    getNeighbors(cell, grid) {
+        const neighbors = [{r:cell.row-1, c:cell.col}, {r:cell.row+1, c:cell.col}, {r:cell.row, c:cell.col-1}, {r:cell.row, c:cell.col+1}];
+        return neighbors.map(n => grid.find(gc => gc.row === n.r && gc.col === n.c)).filter(Boolean);
+    }
+
+    hasNeighborColor(cell, grid, color) { return this.getNeighbors(cell, grid).some(n => n.color === color); }
+
+    playSound(type) {
+        if (!this.audioCtx) return;
+        const osc = this.audioCtx.createOscillator(); const gain = this.audioCtx.createGain(); osc.connect(gain); gain.connect(this.audioCtx.destination);
+        const now = this.audioCtx.currentTime;
+        if (type === 'click') { osc.type = 'sine'; osc.frequency.setValueAtTime(800, now); osc.frequency.exponentialRampToValueAtTime(100, now + 0.05); gain.gain.setValueAtTime(0.1, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.05); osc.start(); osc.stop(now + 0.05); }
+        else if (type === 'correct') { osc.frequency.setValueAtTime(600, now); osc.frequency.exponentialRampToValueAtTime(1200, now + 0.1); gain.gain.setValueAtTime(0.1, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1); osc.start(); osc.stop(now + 0.1); }
+        else if (type === 'wrong') { osc.type = 'square'; osc.frequency.setValueAtTime(150, now); gain.gain.setValueAtTime(0.05, now); gain.gain.linearRampToValueAtTime(0, now + 0.2); osc.start(); osc.stop(now + 0.2); }
+        else if (type === 'win') { [523, 659, 783].forEach((f, i) => { const o = this.audioCtx.createOscillator(); const g = this.audioCtx.createGain(); o.connect(g); g.connect(this.audioCtx.destination); o.frequency.setValueAtTime(f, now + i*0.1); g.gain.setValueAtTime(0.1, now + i*0.1); g.gain.exponentialRampToValueAtTime(0.01, now + i*0.1 + 0.3); o.start(now + i*0.1); o.stop(now + i*0.1 + 0.3); }); }
+    }
+
+    createParticles() {
+        const container = document.getElementById('particles'); if (!container) return;
+        for (let i = 0; i < 30; i++) { const p = document.createElement('div'); p.className = 'bg-dot'; p.style.left = Math.random() * 100 + '%'; p.style.top = Math.random() * 100 + '%'; p.style.animationDelay = Math.random() * 10 + 's'; container.appendChild(p); }
+    }
+
+    winFX() {
+        const rect = this.dom.board.getBoundingClientRect();
+        for (let i = 0; i < 40; i++) {
+            const p = document.createElement('div'); p.className = 'win-particle'; p.style.left = rect.left + rect.width/2 + 'px'; p.style.top = rect.top + rect.height/2 + 'px'; p.style.background = CONFIG.COLORS[Math.floor(Math.random()*CONFIG.COLORS.length)]; document.body.appendChild(p);
+            const angle = Math.random() * Math.PI * 2; const dist = 150 + Math.random() * 250;
+            p.animate([{ transform: 'translate(0, 0) scale(1)', opacity: 1 }, { transform: `translate(${Math.cos(angle)*dist}px, ${Math.sin(angle)*dist}px) scale(0)`, opacity: 0 }], { duration: 1200, easing: 'cubic-bezier(0, .9, .57, 1)' }).onfinish = () => p.remove();
+        }
+    }
+
+    initDailyRulesPool() {
+        return [
+            { check: (c) => c.color === 'red' && c.shape === 'circle', desc: "Tüm kırmızı daireler" },
+            { check: (c) => c.row === c.col && c.color === 'blue', desc: "Diyagonal üzerindeki maviler" },
+            { check: (c) => (c.row + c.col) % 2 === 0 && c.shape === 'triangle', desc: "Açık karelerdeki üçgenler" },
+            { check: (c) => c.color === 'green' && (c.row === 0 || c.row === 5), desc: "Üst ve alt sıradaki yeşiller" },
+            { check: (c) => c.shape === 'square' && (c.col === 0 || c.col === 5), desc: "En sol ve sağdaki kareler" },
+            { check: (c) => c.color === 'purple' && c.row >= 2 && c.row <= 3, desc: "Merkez iki satırdaki morlar" },
+            { check: (c) => c.color === 'yellow' && c.col >= 2 && c.col <= 3, desc: "Merkez iki sütundaki sarılar" },
+            { check: (c) => c.row + c.col === 5 && c.shape === 'circle', desc: "Ters diyagonaldeki daireler" },
+            { check: (c) => (c.row === 0 || c.row === 5 || c.col === 0 || c.col === 5) && c.color === 'red', desc: "Kenarlardaki kırmızılar" },
+            { check: (c) => !(c.row === 0 || c.row === 5 || c.col === 0 || c.col === 5) && c.shape === 'square', desc: "İç alandaki kareler" },
+            { check: (c) => c.row % 2 === 0 && c.color === 'blue', desc: "Çift satırlardaki maviler" },
+            { check: (c) => c.col % 2 !== 0 && c.color === 'green', desc: "Tek sütunlardaki yeşiller" },
+            { check: (c) => c.shape === 'triangle' && c.color !== 'red', desc: "Kırmızı olmayan tüm üçgenler" },
+            { check: (c) => c.color === 'purple' || c.color === 'yellow' && c.shape === 'circle', desc: "Morlar veya sarı daireler" },
+            { check: (c) => c.row === 2 || c.row === 3 || c.col === 2 || c.col === 3, desc: "Merkez çapraz hatlar" },
+            { check: (c) => (c.row + c.col) === 4, desc: "Toplam koordinatı 4 olanlar" },
+            { check: (c) => c.color === 'red' && c.shape !== 'square', desc: "Kırmızı ama kare olmayanlar" },
+            { check: (c) => c.shape === 'circle' && c.row < 3, desc: "Üst yarıdaki daireler" },
+            { check: (c) => c.color === 'blue' && c.col > 2, desc: "Sağ yarıdaki maviler" },
+            { check: (c) => (c.row + c.col) % 3 === 0 && c.color === 'green', desc: "3'lü desenlerdeki yeşiller" },
+            { check: (c) => c.row === c.col && c.shape === 'triangle', desc: "Diyagonaldeki üçgenler" },
+            { check: (c) => c.row + c.col === 5 && c.color === 'purple', desc: "Ters diyagonaldeki morlar" },
+            { check: (c) => (c.row === 1 || c.row === 4) && (c.col === 1 || c.col === 4), desc: "İç çerçeve köşeleri" },
+            { check: (c) => c.color === 'yellow' && c.row % 2 !== 0, desc: "Tek satırlardaki sarılar" },
+            { check: (c) => c.shape === 'square' && c.col % 2 === 0, desc: "Çift sütunlardaki kareler" },
+            { check: (c) => (c.row + c.col) % 4 === 0, desc: "Dama tahtası 4'lü desen" },
+            { check: (c) => c.color === 'red' || c.color === 'blue' && c.shape === 'circle', desc: "Kırmızılar veya mavi daireler" },
+            { check: (c) => c.shape === 'triangle' && (c.row === 0 || c.col === 0), desc: "Üst veya sol kenar üçgenleri" },
+            { check: (c) => c.color === 'green' && (c.row === 5 || c.col === 5), desc: "Alt veya sağ kenar yeşilleri" },
+            { check: (c) => (c.row === 2 || c.row === 3) && c.shape === 'square', desc: "Merkez yataydaki kareler" },
+            { check: (c) => c.color === 'purple' && c.shape === 'circle' && (c.row + c.col) % 2 === 0, desc: "Açık karelerdeki mor daireler" },
+            { check: (c) => c.color === 'blue' && c.row > c.col, desc: "Alt üçgendeki maviler" },
+            { check: (c) => c.color === 'red' && c.row < c.col, desc: "Üst üçgendeki kırmızılar" },
+            { check: (c) => c.shape === 'triangle' && c.row + c.col > 6, desc: "Sağ alt bölgedeki üçgenler" },
+            { check: (c) => c.color === 'green' && c.row + c.col < 4, desc: "Sol üst bölgedeki yeşiller" },
+            { check: (c) => c.color === 'yellow' && c.row === 0 || c.color === 'purple' && c.row === 5, desc: "Üstte sarı, altta mor" },
+            { check: (c) => c.shape === 'square' && c.col === 2 || c.shape === 'circle' && c.col === 3, desc: "3. sütun kare, 4. sütun daire" },
+            { check: (c) => (c.row + c.col) % 5 === 0, desc: "Beşerli desenler" },
+            { check: (c) => c.color === 'red' && c.shape === 'triangle' || c.color === 'blue' && c.shape === 'square', desc: "Kırmızı üçgen veya mavi kare" },
+            { check: (c) => c.row === 1 || c.row === 4 || c.col === 1 || c.col === 4, desc: "İç halka hücreleri" },
+            { check: (c) => c.color === 'purple' && c.row === c.col, desc: "Diyagonal morlar" },
+            { check: (c) => c.color === 'green' && c.row + c.col === 5, desc: "Ters diyagonal yeşiller" },
+            { check: (c) => c.shape === 'circle' && c.color !== 'yellow', desc: "Sarı olmayan daireler" },
+            { check: (c) => c.color === 'blue' && c.shape !== 'triangle', desc: "Mavi ama üçgen değil" },
+            { check: (c) => (c.row === 0 || c.row === 5) && (c.col === 2 || c.col === 3), desc: "Üst/Alt merkez hücreler" },
+            { check: (c) => (c.col === 0 || c.col === 5) && (c.row === 2 || c.row === 3), desc: "Sol/Sağ merkez hücreler" },
+            { check: (c) => c.color === 'red' && c.row % 3 === 0, desc: "3'ün katı olan satır kırmızılar" },
+            { check: (c) => c.shape === 'square' && c.col % 3 === 0, desc: "3'ün katı olan sütun kareler" },
+            { check: (c) => (c.row + c.col) % 2 !== 0 && c.color === 'purple', desc: "Koyu karelerdeki morlar" },
+            { check: (c) => c.gridSize === 6 && (c.row === 0 && c.col === 0 || c.row === 5 && c.col === 5), desc: "Sadece sol üst ve sağ alt köşe" }
+        ];
     }
 
     initRulesPool() {
@@ -370,8 +551,8 @@ class Game {
             { check: (c) => c.row === c.col || c.row + c.col === (c.gridSize - 1), desc: "Büyük X şekli" },
             { check: (c) => (c.row === 0 || c.row === c.gridSize-1 || c.col === 0 || c.col === c.gridSize-1) && c.color === 'yellow', desc: "Kenarlardaki sarılar" },
             { check: (c) => c.col === (c.gridSize - 1 - c.row), desc: "Sağ üstten sol alta çapraz" },
-            { check: (c) => c.row > c.col, desc: "Diyagonalin altında kalanlar" },
-            { check: (c) => c.row < c.col, desc: "Diyagonalin üstünde kalanlar" },
+            { check: (c) => c.row > c.col, desc: "Diyagonalın altında kalanlar" },
+            { check: (c) => c.row < c.col, desc: "Diyagonalın üstünde kalanlar" },
             { check: (c) => (c.row + c.col) % 3 === 0, desc: "3'erli diyagonal desen" },
             { check: (c) => (c.row >= 1 && c.row <= 3) && (c.col >= 1 && c.col <= 3) && !(c.row === 2 && c.col === 2), desc: "Merkez etrafındaki halka" },
             { check: (c) => c.shape === 'square', desc: "Tüm kare şekilleri" },
@@ -445,130 +626,6 @@ class Game {
             { check: (c) => c.row === 0 && c.color === 'red' || c.row === c.gridSize-1 && c.color === 'blue', desc: "Üstte kırmızı, altta mavi" },
             { check: (c) => c.gridSize === 5 && (c.row + c.col) === 4, desc: "5x5 için özel ters diyagonal" }
         ].slice(0, CONFIG.TOTAL_RULES);
-    }
-
-    getNeighbors(cell, grid) {
-        const neighbors = [{r:cell.row-1, c:cell.col}, {r:cell.row+1, c:cell.col}, {r:cell.row, c:cell.col-1}, {r:cell.row, c:cell.col+1}];
-        return neighbors.map(n => grid.find(gc => gc.row === n.r && gc.col === n.c)).filter(Boolean);
-    }
-
-    hasNeighborColor(cell, grid, color) {
-        return this.getNeighbors(cell, grid).some(n => n.color === color);
-    }
-
-    startTimer() {
-        this.stopTimer();
-        this.timeLeft = CONFIG.INITIAL_TIME;
-        this.updateTimerUI();
-        this.timerInterval = setInterval(() => { this.timeLeft--; this.updateTimerUI(); if (this.timeLeft <= 0) this.handleTimeUp(); }, 1000);
-    }
-
-    stopTimer() { if (this.timerInterval) { clearInterval(this.timerInterval); this.timerInterval = null; } }
-
-    updateTimerUI() {
-        this.dom.timerText.innerText = Math.max(0, this.timeLeft);
-        const offset = CONFIG.TIMER_CIRUMFERENCE - (this.timeLeft / CONFIG.INITIAL_TIME) * CONFIG.TIMER_CIRUMFERENCE;
-        this.dom.timerProgress.style.strokeDashoffset = offset;
-        if (this.timeLeft <= 20) this.dom.timerContainer.classList.add('danger');
-        else this.dom.timerContainer.classList.remove('danger');
-    }
-
-    handleTimeUp() { this.stopTimer(); this.playSound('wrong'); this.dom.overModal.classList.remove('hidden'); }
-
-    startLevel() {
-        this.dom.winModal.classList.add('hidden');
-        this.dom.overModal.classList.add('hidden');
-        let index;
-        do { index = Math.floor(Math.random() * this.rulesPool.length); } while (this.ruleHistory.includes(index));
-        this.ruleHistory.push(index);
-        if (this.ruleHistory.length > CONFIG.HISTORY_LIMIT) this.ruleHistory.shift();
-        this.saveLocal();
-        this.currentRuleIndex = index;
-        this.currentRule = this.rulesPool[index];
-        this.gridSize = this.currentLevelNumber >= 15 ? 5 : 4;
-        this.isLevelComplete = false; this.correctCellsFound = 0;
-        this.generateGrid(); this.updateStats(); this.startTimer();
-        this.dom.feedback.innerText = "Gizli kuralı keşfet...";
-        this.dom.feedback.style.color = "var(--text-muted)";
-    }
-
-    generateGrid() {
-        this.dom.board.innerHTML = '';
-        this.dom.board.className = this.gridSize === 4 ? 'grid-4x4' : 'grid-5x5';
-        let valid = false;
-        while (!valid) {
-            this.cells = []; this.totalCorrectCells = 0;
-            for (let i = 0; i < this.gridSize * this.gridSize; i++) {
-                this.cells.push({ index: i, row: Math.floor(i/this.gridSize), col: i%this.gridSize, gridSize: this.gridSize, color: CONFIG.COLORS[Math.floor(Math.random() * CONFIG.COLORS.length)], shape: CONFIG.SHAPES[Math.floor(Math.random() * CONFIG.SHAPES.length)], isFound: false });
-            }
-            this.cells.forEach(c => { c.isCorrect = this.currentRule.check(c, this.cells); if (c.isCorrect) this.totalCorrectCells++; });
-            if (this.totalCorrectCells >= 2 && this.totalCorrectCells <= (this.gridSize*this.gridSize - 3)) valid = true;
-        }
-        this.cells.forEach((c, idx) => {
-            const el = document.createElement('div'); el.className = `cell cell-${c.color}`; el.style.animationDelay = `${idx * 0.02}s`;
-            const s = document.createElement('div'); s.className = `shape ${c.shape}`; el.appendChild(s);
-            el.onclick = () => this.handleCellClick(c, el); this.dom.board.appendChild(el);
-        });
-    }
-
-    handleCellClick(cell, el) {
-        if (!this.isGameStarted || this.isLevelComplete || cell.isFound || this.timeLeft <= 0) return;
-        this.playSound('click');
-        if (cell.isCorrect) {
-            cell.isFound = true; el.classList.add('found'); this.correctCellsFound++; this.playSound('correct');
-            if (this.correctCellsFound === this.totalCorrectCells) this.completeLevel();
-        } else {
-            el.classList.add('wrong'); this.playSound('wrong'); this.timeLeft = Math.max(0, this.timeLeft - CONFIG.PENALTY); this.updateTimerUI();
-            setTimeout(() => el.classList.remove('wrong'), 400); this.dom.feedback.innerText = `Ceza! -${CONFIG.PENALTY}s`; this.dom.feedback.style.color = "var(--danger)";
-        }
-    }
-
-    completeLevel() {
-        this.isLevelComplete = true; this.stopTimer();
-        this.dom.ruleDesc.innerText = this.currentRule.desc;
-        this.discoveredRules.add(this.currentRuleIndex);
-        let stars = 1; if (this.timeLeft > 80) stars = 3; else if (this.timeLeft > 40) stars = 2;
-        this.starsData[this.currentLevelNumber] = Math.max(this.starsData[this.currentLevelNumber] || 0, stars);
-        this.ruleStars[this.currentRuleIndex] = Math.max(this.ruleStars[this.currentRuleIndex] || 0, stars);
-        
-        this.saveLocal();
-        this.syncToCloud(); // Cloud Save
-        
-        this.playSound('win');
-        setTimeout(() => { this.showStars(stars); this.dom.winModal.classList.remove('hidden'); this.winFX(); }, 400);
-    }
-
-    showStars(count) {
-        const stars = this.dom.starsContainer.querySelectorAll('.star');
-        stars.forEach((s, i) => { s.classList.remove('active'); if (i < count) setTimeout(() => s.classList.add('active'), i * 200 + 300); });
-    }
-
-    nextLevel() { this.currentLevelNumber++; this.saveLocal(); this.syncToCloud(); this.startLevel(); }
-
-    updateStats() { this.dom.level.innerText = this.currentLevelNumber.toString().padStart(2, '0'); const progress = (this.currentLevelNumber % 10) * 10 || 100; this.dom.progressBar.style.width = `${progress}%`; }
-
-    playSound(type) {
-        if (!this.audioCtx) return;
-        const osc = this.audioCtx.createOscillator(); const gain = this.audioCtx.createGain(); osc.connect(gain); gain.connect(this.audioCtx.destination);
-        const now = this.audioCtx.currentTime;
-        if (type === 'click') { osc.type = 'sine'; osc.frequency.setValueAtTime(800, now); osc.frequency.exponentialRampToValueAtTime(100, now + 0.05); gain.gain.setValueAtTime(0.1, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.05); osc.start(); osc.stop(now + 0.05); }
-        else if (type === 'correct') { osc.frequency.setValueAtTime(600, now); osc.frequency.exponentialRampToValueAtTime(1200, now + 0.1); gain.gain.setValueAtTime(0.1, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1); osc.start(); osc.stop(now + 0.1); }
-        else if (type === 'wrong') { osc.type = 'square'; osc.frequency.setValueAtTime(150, now); gain.gain.setValueAtTime(0.05, now); gain.gain.linearRampToValueAtTime(0, now + 0.2); osc.start(); osc.stop(now + 0.2); }
-        else if (type === 'win') { [523, 659, 783].forEach((f, i) => { const o = this.audioCtx.createOscillator(); const g = this.audioCtx.createGain(); o.connect(g); g.connect(this.audioCtx.destination); o.frequency.setValueAtTime(f, now + i*0.1); g.gain.setValueAtTime(0.1, now + i*0.1); g.gain.exponentialRampToValueAtTime(0.01, now + i*0.1 + 0.3); o.start(now + i*0.1); o.stop(now + i*0.1 + 0.3); }); }
-    }
-
-    createParticles() {
-        const container = document.getElementById('particles'); if (!container) return;
-        for (let i = 0; i < 30; i++) { const p = document.createElement('div'); p.className = 'bg-dot'; p.style.left = Math.random() * 100 + '%'; p.style.top = Math.random() * 100 + '%'; p.style.animationDelay = Math.random() * 10 + 's'; container.appendChild(p); }
-    }
-
-    winFX() {
-        const rect = this.dom.board.getBoundingClientRect();
-        for (let i = 0; i < 40; i++) {
-            const p = document.createElement('div'); p.className = 'win-particle'; p.style.left = rect.left + rect.width/2 + 'px'; p.style.top = rect.top + rect.height/2 + 'px'; p.style.background = CONFIG.COLORS[Math.floor(Math.random()*CONFIG.COLORS.length)]; document.body.appendChild(p);
-            const angle = Math.random() * Math.PI * 2; const dist = 150 + Math.random() * 250;
-            p.animate([{ transform: 'translate(0, 0) scale(1)', opacity: 1 }, { transform: `translate(${Math.cos(angle)*dist}px, ${Math.sin(angle)*dist}px) scale(0)`, opacity: 0 }], { duration: 1200, easing: 'cubic-bezier(0, .9, .57, 1)' }).onfinish = () => p.remove();
-        }
     }
 }
 
