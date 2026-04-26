@@ -1,6 +1,6 @@
 /**
  * RULE BREAKER - Premium Logic Puzzle
- * v2.9.1 - Bugfix Edition (Restored Timer Logic)
+ * v2.9.2 - Daily Lives Edition
  */
 
 import { initializeApp } from "firebase/app";
@@ -41,6 +41,8 @@ class Game {
         
         this.dailyTrophies = parseInt(localStorage.getItem('rulebreaker_daily_count')) || 0;
         this.lastDailyDate = localStorage.getItem('rulebreaker_last_daily') || '';
+        this.dailyAttempts = parseInt(localStorage.getItem('rulebreaker_daily_attempts')) ?? 3;
+        this.lastAttemptDate = localStorage.getItem('rulebreaker_last_attempt_date') || '';
         this.isDailyMode = false;
 
         this.gridSize = 4;
@@ -50,7 +52,6 @@ class Game {
         this.isLevelComplete = false;
         this.isGameStarted = false;
         
-        // Anti-Cheat State
         this.consecutiveWrong = 0;
         this.lastClickTime = 0;
         this.wrongClicksThisLevel = 0;
@@ -85,7 +86,7 @@ class Game {
             starsContainer: document.getElementById('stars-display'),
             startBtn: document.getElementById('start-game-btn'),
             dailyBtn: document.getElementById('daily-challenge-btn'),
-            dailyStatus: document.getElementById('daily-status'),
+            dailyLives: document.getElementById('daily-lives-display'),
             dailyTimer: document.getElementById('daily-countdown'),
             dailyCountDisplay: document.getElementById('daily-trophies'),
             howToBtn: document.getElementById('how-to-play-btn'),
@@ -131,6 +132,8 @@ class Game {
                 codex: Array.from(this.discoveredRules),
                 dailyCount: this.dailyTrophies,
                 lastDailyDate: this.lastDailyDate,
+                dailyAttempts: this.dailyAttempts,
+                lastAttemptDate: this.lastAttemptDate,
                 lastUpdated: new Date().getTime()
             }, { merge: true });
         } catch (e) { console.error("Cloud sync failed:", e); }
@@ -143,13 +146,15 @@ class Game {
             const snap = await getDoc(userDoc);
             if (snap.exists()) {
                 const data = snap.data();
-                if ((data.level || 0) > this.currentLevelNumber || (data.dailyCount || 0) > this.dailyTrophies) {
+                if ((data.level || 0) >= this.currentLevelNumber) {
                     this.currentLevelNumber = data.level || 1;
                     this.starsData = data.stars || {};
                     this.ruleStars = data.ruleStars || {};
                     this.discoveredRules = new Set(data.codex || []);
                     this.dailyTrophies = data.dailyCount || 0;
                     this.lastDailyDate = data.lastDailyDate || '';
+                    this.dailyAttempts = data.dailyAttempts ?? 3;
+                    this.lastAttemptDate = data.lastAttemptDate || '';
                     this.saveLocal();
                     this.initMenu();
                 }
@@ -164,6 +169,8 @@ class Game {
         localStorage.setItem('rulebreaker_codex', JSON.stringify(Array.from(this.discoveredRules)));
         localStorage.setItem('rulebreaker_daily_count', this.dailyTrophies);
         localStorage.setItem('rulebreaker_last_daily', this.lastDailyDate);
+        localStorage.setItem('rulebreaker_daily_attempts', this.dailyAttempts);
+        localStorage.setItem('rulebreaker_last_attempt_date', this.lastAttemptDate);
     }
 
     init() {
@@ -193,15 +200,32 @@ class Game {
         this.dom.appShell.querySelector('#level-subtitle').innerText = this.currentLevelNumber > 1 ? `Seviye ${this.currentLevelNumber}` : 'YENİ BAŞLA';
         
         const today = new Date().toISOString().split('T')[0];
+        // Reset daily attempts if it's a new day
+        if (this.lastAttemptDate !== today) {
+            this.dailyAttempts = 3;
+            this.lastAttemptDate = today;
+            this.saveLocal();
+        }
+
+        this.renderDailyHearts();
+
         if (this.lastDailyDate === today) {
-            this.dom.dailyStatus.innerText = "Bugün tamamlandı!";
-            this.dom.dailyBtn.classList.add('completed');
+            this.dom.dailyBtn.classList.add('exhausted');
             this.dom.dailyBtn.style.opacity = '0.6';
+        } else if (this.dailyAttempts <= 0) {
+            this.dom.dailyBtn.classList.add('exhausted');
         } else {
-            this.dom.dailyStatus.innerText = "Bugün henüz tamamlanmadı";
-            this.dom.dailyBtn.classList.remove('completed');
+            this.dom.dailyBtn.classList.remove('exhausted');
             this.dom.dailyBtn.style.opacity = '1';
         }
+    }
+
+    renderDailyHearts() {
+        const hearts = this.dom.dailyLives.querySelectorAll('i');
+        hearts.forEach((h, i) => {
+            if (i < this.dailyAttempts) h.classList.remove('lost');
+            else h.classList.add('lost');
+        });
     }
 
     startDailyTimer() {
@@ -220,18 +244,13 @@ class Game {
 
     startDailyChallenge() {
         const today = new Date().toISOString().split('T')[0];
-        if (this.lastDailyDate === today) return;
+        if (this.lastDailyDate === today || this.dailyAttempts <= 0) return;
+        
         this.isDailyMode = true;
         this.dom.appShell.classList.add('daily-mode');
         this.dom.menu.classList.add('hidden');
         this.dom.game.classList.remove('hidden');
-        this.gridSize = 6;
-        const seed = parseInt(today.replace(/-/g, ''));
-        const index = seed % this.dailyRulesPool.length;
-        this.currentRule = this.dailyRulesPool[index];
-        this.currentRuleIndex = -1;
-        this.startLevelLogic();
-        this.dom.feedback.innerText = "GÜNLÜK ÖZEL KURAL";
+        this.startLevel();
     }
 
     startGame() {
@@ -330,22 +349,39 @@ class Game {
         this.playSound('win');
         if (this.user) {
             const userDoc = doc(db, "users", this.user.uid);
-            await setDoc(userDoc, { level: 1, stars: {}, ruleStars: {}, codex: [], dailyCount: 0, lastDailyDate: '' }, { merge: true });
+            await setDoc(userDoc, { level: 1, stars: {}, ruleStars: {}, codex: [], dailyCount: 0, lastDailyDate: '', dailyAttempts: 3 }, { merge: true });
         }
         localStorage.clear(); location.reload();
     }
 
+    seededRandom(seed) {
+        const x = Math.sin(seed++) * 10000;
+        return x - Math.floor(x);
+    }
+
     startLevel() {
         this.dom.winModal.classList.add('hidden'); this.dom.overModal.classList.add('hidden');
-        let index;
-        do { index = Math.floor(Math.random() * this.rulesPool.length); } while (this.ruleHistory.includes(index));
-        this.ruleHistory.push(index);
-        if (this.ruleHistory.length > CONFIG.HISTORY_LIMIT) this.ruleHistory.shift();
-        this.currentRuleIndex = index;
-        this.currentRule = this.rulesPool[index];
-        this.gridSize = this.currentLevelNumber >= 15 ? 5 : 4;
+        
+        if (this.isDailyMode) {
+            if (this.dailyAttempts <= 0) { this.backToMenu(); return; }
+            const today = new Date().toISOString().split('T')[0];
+            const seed = parseInt(today.replace(/-/g, ''));
+            const index = seed % this.dailyRulesPool.length;
+            this.currentRule = this.dailyRulesPool[index];
+            this.currentRuleIndex = -1;
+            this.gridSize = 6;
+        } else {
+            let index;
+            do { index = Math.floor(Math.random() * this.rulesPool.length); } while (this.ruleHistory.includes(index));
+            this.ruleHistory.push(index);
+            if (this.ruleHistory.length > CONFIG.HISTORY_LIMIT) this.ruleHistory.shift();
+            this.currentRuleIndex = index;
+            this.currentRule = this.rulesPool[index];
+            this.gridSize = this.currentLevelNumber >= 15 ? 5 : 4;
+        }
+        
         this.startLevelLogic();
-        this.dom.feedback.innerText = "Gizli kuralı keşfet...";
+        this.dom.feedback.innerText = this.isDailyMode ? `GÜNLÜK MÜCADELE (Kalan Hak: ${this.dailyAttempts})` : "Gizli kuralı keşfet...";
         this.dom.feedback.style.color = "var(--text-muted)";
     }
 
@@ -358,14 +394,19 @@ class Game {
     generateGrid() {
         this.dom.board.innerHTML = '';
         this.dom.board.className = this.gridSize === 4 ? 'grid-4x4' : (this.gridSize === 5 ? 'grid-5x5' : 'grid-6x6');
+        const today = new Date().toISOString().split('T')[0];
+        let seed = this.isDailyMode ? parseInt(today.replace(/-/g, '')) : Math.random() * 1000000;
         let valid = false;
         while (!valid) {
             this.cells = []; this.totalCorrectCells = 0;
             for (let i = 0; i < this.gridSize * this.gridSize; i++) {
-                this.cells.push({ index: i, row: Math.floor(i/this.gridSize), col: i%this.gridSize, gridSize: this.gridSize, color: CONFIG.COLORS[Math.floor(Math.random() * CONFIG.COLORS.length)], shape: CONFIG.SHAPES[Math.floor(Math.random() * CONFIG.SHAPES.length)], isFound: false });
+                const rVal = this.isDailyMode ? this.seededRandom(seed++) : Math.random();
+                const sVal = this.isDailyMode ? this.seededRandom(seed++) : Math.random();
+                this.cells.push({ index: i, row: Math.floor(i/this.gridSize), col: i%this.gridSize, gridSize: this.gridSize, color: CONFIG.COLORS[Math.floor(rVal * CONFIG.COLORS.length)], shape: CONFIG.SHAPES[Math.floor(sVal * CONFIG.SHAPES.length)], isFound: false });
             }
             this.cells.forEach(c => { c.isCorrect = this.currentRule.check(c, this.cells); if (c.isCorrect) this.totalCorrectCells++; });
             if (this.totalCorrectCells >= 2 && this.totalCorrectCells <= (this.gridSize*this.gridSize - 5)) valid = true;
+            if (!valid && this.isDailyMode) seed += 100;
         }
         this.cells.forEach((c, idx) => {
             const el = document.createElement('div'); el.className = `cell cell-${c.color}`; el.style.animationDelay = `${idx * 0.01}s`;
@@ -435,7 +476,28 @@ class Game {
         else this.dom.timerContainer.classList.remove('danger');
     }
 
-    handleTimeUp() { this.stopTimer(); this.playSound('wrong'); this.dom.overModal.classList.remove('hidden'); }
+    handleTimeUp() {
+        this.stopTimer();
+        this.playSound('wrong');
+        
+        if (this.isDailyMode) {
+            this.dailyAttempts--;
+            this.saveLocal();
+            this.syncToCloud();
+            if (this.dailyAttempts <= 0) {
+                this.dom.overModal.querySelector('h2').innerText = "HAKLAR TÜKENDİ";
+                this.dom.overModal.querySelector('p').innerText = "Günün Mücadelesi için hakkın kalmadı. Yarın tekrar gel!";
+                this.dom.retryBtn.classList.add('hidden');
+            } else {
+                this.dom.overModal.querySelector('p').innerText = `Günün Mücadelesi için ${this.dailyAttempts} hakkın kaldı!`;
+                this.dom.retryBtn.classList.remove('hidden');
+            }
+        } else {
+            this.dom.retryBtn.classList.remove('hidden');
+        }
+        
+        this.dom.overModal.classList.remove('hidden');
+    }
 
     getNeighbors(cell, grid) {
         const neighbors = [{r:cell.row-1, c:cell.col}, {r:cell.row+1, c:cell.col}, {r:cell.row, c:cell.col-1}, {r:cell.row, c:cell.col+1}];
