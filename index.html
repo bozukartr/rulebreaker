@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Rule Breaker | Hidden Logic Puzzle</title>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script type="importmap">
+      {
+        "imports": {
+          "firebase/app": "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js",
+          "firebase/auth": "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js",
+          "firebase/firestore": "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js"
+        }
+      }
+    </script>
+</head>
+
+<body>
+    <div class="app-shell">
+        <div class="bg-vignette"></div>
+        <div class="particles" id="particles"></div>
+        <div class="bg-gradient-orb orb-1"></div>
+        <div class="bg-gradient-orb orb-2"></div>
+
+        <!-- Main Menu -->
+        <div id="main-menu" class="screen">
+            <div class="menu-content">
+                <div class="hero-section">
+                    <div class="stats-row">
+                        <div class="mini-badge">
+                            <span class="badge-icon"><i class="fas fa-star"></i></span>
+                            <span id="total-stars">0</span>
+                        </div>
+                        <div class="mini-badge">
+                            <span class="badge-icon"><i class="fas fa-book"></i></span>
+                            <span id="discovered-ratio">0/100</span>
+                        </div>
+                    </div>
+
+                    <div class="logo-container">
+                        <div class="logo-orb"></div>
+                        <h1 class="glitch-logo" data-text="RULEBREAKER">RULE<br>BREAKER</h1>
+                        <div class="logo-shadow"></div>
+                    </div>
+                </div>
+
+                <div class="action-section">
+                    <button id="start-game-btn" class="main-play-btn">
+                        <span class="btn-glow"></span>
+                        <div class="btn-content">
+                            <span class="play-icon"><i class="fas fa-play"></i></span>
+                            <div class="play-text">
+                                <span class="primary-text">OYUNA BAŞLA</span>
+                                <span id="level-subtitle" class="secondary-text">Seviye 01</span>
+                            </div>
+                        </div>
+                    </button>
+
+                    <div class="secondary-actions">
+                        <button id="view-rules-btn" class="nav-card">
+                            <div class="nav-icon"><i class="fas fa-book-open"></i></div>
+                            <span class="nav-label">KOLEKSİYON</span>
+                        </button>
+                        <button id="how-to-play-btn" class="nav-card">
+                            <div class="nav-icon"><i class="fas fa-lightbulb"></i></div>
+                            <span class="nav-label">REHBER</span>
+                        </button>
+                        <button id="reset-progress" class="nav-card danger-nav">
+                            <div class="nav-icon"><i class="fas fa-cog"></i></div>
+                            <span class="nav-label">AYARLAR</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="menu-footer">
+                    <p class="version-tag"><i class="fas fa-lock"></i></p>
+                    <div class="footer-line"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Game Screen -->
+        <div id="game-screen" class="screen hidden">
+            <div class="game-container">
+                <header class="game-header">
+                    <button id="home-btn" class="mini-icon-btn">
+                        <span><i class="fas fa-home"></i></span>
+                    </button>
+
+                    <div class="stat-widget level-widget">
+                        <span class="widget-label">LEVEL</span>
+                        <span id="current-level" class="widget-value">01</span>
+                    </div>
+
+                    <div class="timer-widget" id="timer-container">
+                        <svg class="timer-svg" viewBox="0 0 100 100">
+                            <circle class="timer-bg" cx="50" cy="50" r="45"></circle>
+                            <circle id="timer-progress" class="timer-bar" cx="50" cy="50" r="45"></circle>
+                        </svg>
+                        <span id="timer-value" class="timer-text">120</span>
+                    </div>
+                </header>
+
+                <div class="progress-track">
+                    <div id="progress-fill" class="progress-bar"></div>
+                </div>
+
+                <main class="board-area">
+                    <div id="game-board" class="grid-4x4">
+                        <!-- Dynamic Cells -->
+                    </div>
+
+                    <div class="hint-box">
+                        <p id="feedback-text">Gizli kuralı keşfet...</p>
+                    </div>
+                </main>
+            </div>
+        </div>
+
+        <div id="rules-screen" class="screen hidden">
+            <div class="rules-container">
+                <header class="rules-header">
+                    <button id="rules-back-btn" class="mini-icon-btn"><span><i class="fas fa-arrow-left"></i></span></button>
+                    <div class="header-titles">
+                        <h2>KOLEKSİYON</h2>
+                        <p><span id="discovered-count">0</span> / <span id="total-rules-count">100</span> Kural
+                            Keşfedildi</p>
+                    </div>
+                </header>
+                <div id="rules-list" class="rules-list">
+                    <!-- Dynamic Rules -->
+                </div>
+            </div>
+        </div>
+
+        <div id="rule-preview-modal" class="modal hidden">
+            <div class="modal-window preview-window">
+                <div class="modal-header">
+                    <h2 id="preview-rule-title">Kural Detayı</h2>
+                </div>
+                <div class="preview-grid-container">
+                    <div id="preview-board" class="mini-grid preview-grid"></div>
+                </div>
+                <p id="preview-rule-desc" class="preview-desc"></p>
+                <button id="close-preview-btn" class="action-btn">KAPAT</button>
+            </div>
+        </div>
+
+        <div id="reset-modal" class="modal hidden">
+            <div class="modal-window danger-window">
+                <div class="danger-icon"><i class="fas fa-exclamation-triangle"></i></div>
+                <h2>SİSTEMİ SIFIRLA</h2>
+                <p class="warning-text">Tüm ilerleme ve koleksiyon kalıcı olarak silinecek. Onaylamak için güvenlik
+                    protokolünü çöz:</p>
+                <div class="reset-puzzle-container">
+                    <p id="reset-rule-hint" class="reset-hint">Kırmızı hücreleri seç</p>
+                    <div id="reset-board" class="mini-grid"></div>
+                </div>
+                <button id="cancel-reset-btn" class="action-btn secondary-btn">İPTAL ET</button>
+            </div>
+        </div>
+
+        <!-- Modals -->
+        <div id="tutorial-modal" class="modal hidden">
+            <div class="modal-window">
+                <div class="modal-header">
+                    <h2>NASIL OYNANIR?</h2>
+                    <div class="header-line"></div>
+                </div>
+                <div class="tutorial-content">
+                    <div class="t-item">
+                        <div class="t-icon"><i class="fas fa-search"></i></div>
+                        <p>Her seviyede gizli bir kural vardır, hücrelere tıklayarak kuralı bul.</p>
+                    </div>
+                    <div class="t-item">
+                        <div class="t-icon"><i class="fas fa-bolt"></i></div>
+                        <p>Doğru hücreler kalıcı olarak yanar, yanlışlarda zaman kaybedersin.</p>
+                    </div>
+                    <div class="t-item">
+                        <div class="t-icon"><i class="fas fa-exclamation-circle"></i></div>
+                        <p>Hatalı her hamle sürenden <b>3 saniye</b> eksiltir.</p>
+                    </div>
+                </div>
+                <button id="close-tutorial-btn" class="action-btn">ANLADIM</button>
+            </div>
+        </div>
+
+        <div id="win-modal" class="modal hidden">
+            <div class="modal-window success-window">
+                <div class="stars-container" id="stars-display">
+                    <span class="star"><i class="fas fa-star"></i></span>
+                    <span class="star"><i class="fas fa-star"></i></span>
+                    <span class="star"><i class="fas fa-star"></i></span>
+                </div>
+                <h2>LEVEL COMPLETE</h2>
+                <div class="rule-reveal-box">
+                    <span class="rule-label">KURAL ÇÖZÜLDÜ:</span>
+                    <p id="rule-text" class="rule-desc"></p>
+                </div>
+                <div class="modal-actions">
+                    <button id="next-level-btn" class="action-btn glow-btn">SIRADAKİ SEVİYE</button>
+                    <button id="win-home-btn" class="action-btn secondary-btn">MENÜYE DÖN</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="game-over-modal" class="modal hidden">
+            <div class="modal-window danger-window">
+                <div class="danger-icon"><i class="fas fa-hourglass-end"></i></div>
+                <h2>SÜRE BİTTİ</h2>
+                <p>Kuralı bulmak için zamanın yetmedi.</p>
+                <button id="retry-level-btn" class="action-btn">TEKRAR DENE</button>
+            </div>
+        </div>
+    </div>
+    <script type="module" src="script.js"></script>
+</body>
+
+</html>
