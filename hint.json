@@ -1,0 +1,404 @@
+{
+  "normal": [
+    {
+      "id": 0,
+      "hints": ["Kanın ve ateşin rengine bürünenleri bul.", "Dur levhasının tonunda olanları seç.", "Elmanın en olgun rengine dokun."]
+    },
+    {
+      "id": 1,
+      "hints": ["Sadece sınır boylarında dolaşanları seç.", "Çerçevenin dış hattını tamamla.", "Merkezden uzak, kenarlara yakın dur."]
+    },
+    {
+      "id": 2,
+      "hints": ["Zirvedeki ilk sırayı kontrol et.", "En tepedekiler her zaman öndedir.", "Gökyüzüne en yakın olan satıra odaklan."]
+    },
+    {
+      "id": 3,
+      "hints": ["Denizin ve gökyüzünün derinliklerini ara.", "Huzurun rengiyle boyanmış olanları seç.", "Gece bulutsuz bir göğe bak ve o rengi bul."]
+    },
+    {
+      "id": 4,
+      "hints": ["Kalbe en yakın olan dörtlüye odaklan.", "Merkezin çekirdeğindeki kareleri seç.", "Tam ortada buluşanları bul."]
+    },
+    {
+      "id": 5,
+      "hints": ["Başlangıç çizgisindeki dikey hattı seç.", "En solun gücüne odaklan.", "İlk sütunun muhafızlarını bul."]
+    },
+    {
+      "id": 6,
+      "hints": ["Köşesi olmayanların dünyasına gir.", "Ay gibi yuvarlak olanları seç.", "Dönüp duran tekerleklerin formuna bak."]
+    },
+    {
+      "id": 7,
+      "hints": ["Doğanın kalbindeki yeşili bul.", "Ormanların rengine bürünenleri seç.", "Taze çimenlerin kokusunu taşıyan tonu ara."]
+    },
+    {
+      "id": 8,
+      "hints": ["Temel katmandaki tüm hücreleri seç.", "En alt sıranın ağırlığına odaklan.", "Ayak bastığın yerdeki satırı bul."]
+    },
+    {
+      "id": 9,
+      "hints": ["Bitiş çizgisindeki muhafızları bul.", "En sağdaki dikey hattı tamamla.", "Son durağın yolcularını seç."]
+    },
+    {
+      "id": 10,
+      "hints": ["Köşelerdeki ateşin rengini bul.", "Dört uçtaki kırmızılara odaklan.", "Sınırların bittiği yerdeki elma tonlarını seç."]
+    },
+    {
+      "id": 11,
+      "hints": ["Sınır boylarındaki denizin rengini bul.", "Kenarlardaki tüm mavileri seç.", "Çerçevenin içindeki gökyüzü tonlarını ara."]
+    },
+    {
+      "id": 12,
+      "hints": ["Sol üstten sağ alta bir köprü kur.", "Ayna gibi birbirini izleyen çapraz hattı bul.", "Köşeden köşeye uzanan yolu izle."]
+    },
+    {
+      "id": 13,
+      "hints": ["Bir dolu bir boş, açık renkleri seç.", "Satranç tahtasının aydınlık yüzünü bul.", "Dama düzenindeki güneşli kareleri ara."]
+    },
+    {
+      "id": 14,
+      "hints": ["Kenarlarda olan ama köşede olmayan yeşilleri bul.", "Uçlar hariç, sınır boyundaki ormanları ara.", "Köşelerden kaçan çimen tonlarına odaklan."]
+    },
+    {
+      "id": 15,
+      "hints": ["Kralların rengindeki üçgenleri seç.", "Mor dağların sivri uçlarını bul.", "Menekşe tonlu piramitlere dokun."]
+    },
+    {
+      "id": 16,
+      "hints": ["Tek numaralı dikey hatlara odaklan (2 ve 4).", "İkinci ve dördüncü sütunları doldur.", "Merkeze yakın dikey yolları seç."]
+    },
+    {
+      "id": 17,
+      "hints": ["Tek numaralı yatay hatlara odaklan (2 ve 4).", "İkinci ve dördüncü satırları doldur.", "Merkeze yakın yatay yolları seç."]
+    },
+    {
+      "id": 18,
+      "hints": ["Ateş renginden köşe bucak kaç.", "Kırmızı olmayan her şeye dokun.", "Elma rengi hariç tüm dünyayı seç."]
+    },
+    {
+      "id": 19,
+      "hints": ["Merkezden dışa uzanan artı şeklini bul.", "Tam ortadaki dikey ve yatay yolu seç.", "Tablonun bel kemiğini oluştur."]
+    },
+    {
+      "id": 20,
+      "hints": ["Ateşin yanındaki komşuları selamla.", "Kırmızıya değen her hücreyi bul.", "Kırmızının etrafındaki halkayı seç."]
+    },
+    {
+      "id": 21,
+      "hints": ["Satranç tahtasının karanlık yüzünü bul.", "Dama düzenindeki gölgeli kareleri ara.", "Bir dolu bir boş, koyu yerleri seç."]
+    },
+    {
+      "id": 22,
+      "hints": ["Deniz ve ateşin birleşimini bul.", "Sadece kırmızı ve mavi olanlara odaklan.", "Sıcak ve soğuğun dansını seç."]
+    },
+    {
+      "id": 23,
+      "hints": ["Büyük bir çarpı işareti çiz.", "Köşeden köşeye X formunu tamamla.", "Merkezde kesişen iki yolu bul."]
+    },
+    {
+      "id": 24,
+      "hints": ["Sınır boylarındaki altın rengini bul.", "Kenarlardaki tüm sarıları seç.", "Çerçevenin parlayan güneşlerini ara."]
+    },
+    {
+      "id": 25,
+      "hints": ["Sağ üstten sol alta bir yol izle.", "Ters çaprazın gizemini çöz.", "Zıt köşeleri birleştiren hattı bul."]
+    },
+    {
+      "id": 26,
+      "hints": ["Çaprazın altında kalan dünyayı seç.", "Gölgede kalan alt üçgeni doldur.", "Diyagonalin aşağısına odaklan."]
+    },
+    {
+      "id": 27,
+      "hints": ["Çaprazın üstünde kalan dünyayı seç.", "Aydınlık üst üçgeni doldur.", "Diyagonalin yukarısına odaklan."]
+    },
+    {
+      "id": 28,
+      "hints": ["Üçerli adımlarla çaprazları bul.", "Tekrar eden ritmik çizgileri seç.", "Diyagonal deseni 3 birimde bir yakala."]
+    },
+    {
+      "id": 29,
+      "hints": ["Merkezin etrafında bir koruma kalkanı kur.", "Göbek hariç, orta alanı çevreleyenleri seç.", "Çekirdeğin etrafındaki halkayı bul."]
+    },
+    {
+      "id": 30,
+      "hints": ["Dört köşesi olan her forma dokun.", "Keskin hatlı kare şekillerini seç.", "Yuvarlak olmayan, köşeli dünyayı bul."]
+    },
+    {
+      "id": 31,
+      "hints": ["Çift numaralı yatay hatları seç.", "İkinci ve dördüncü satırın gücüne bak.", "Eşit bölünen sıraları doldur."]
+    },
+    {
+      "id": 32,
+      "hints": ["Çift numaralı dikey hatları seç.", "İkinci ve dördüncü sütunun gücüne bak.", "Eşit bölünen yolları doldur."]
+    },
+    {
+      "id": 33,
+      "hints": ["Güneş ve menekşe tonlarını birleştir.", "Sadece sarı ve mor olanlara odaklan.", "Zıt ama uyumlu iki rengi seç."]
+    },
+    {
+      "id": 34,
+      "hints": ["Ormanlar veya sivri tepeler seni bekliyor.", "Yeşil olanları veya üçgenleri seç.", "Doğanın rengine veya formuna odaklan."]
+    },
+    {
+      "id": 35,
+      "hints": ["Ateş rengi veya dört köşe seni bekliyor.", "Kırmızı olanları veya kareleri seç.", "Sıcağın rengine veya formuna odaklan."]
+    },
+    {
+      "id": 36,
+      "hints": ["Kendinden başkasına bölünmeyen numaraları seç.", "Asal sayıların gizli yerlerini bul.", "Matematiğin yalnız rakamlarına odaklan."]
+    },
+    {
+      "id": 37,
+      "hints": ["Her dört adımda bir parlayanları bul.", "Dörtlü ritmin senfonisini seç.", "Düzenli aralıklarla yerleşenleri ara."]
+    },
+    {
+      "id": 38,
+      "hints": ["5x5 dünyasının tam orta hatlarını bul.", "Merkezdeki haç formuna odaklan.", "Beşlik tablonun bel kemiğini seç."]
+    },
+    {
+      "id": 39,
+      "hints": ["Dış dünyadan kaç, içerde kal.", "Sınırların içindeki güvenli alanı seç.", "Çerçevenin kalbinde saklananları bul."]
+    },
+    {
+      "id": 40,
+      "hints": ["Çaprazın hemen yanındaki gölgeleri seç.", "Diyagonale omuz verenleri bul.", "Ana yolun bir adım uzağındakileri ara."]
+    },
+    {
+      "id": 41,
+      "hints": ["Sadece en üst ve en altı hatırla.", "Tavan ve tabandaki hücreleri seç.", "Sandviç gibi arayı boş bırak."]
+    },
+    {
+      "id": 42,
+      "hints": ["Sadece en sol ve en sağı hatırla.", "İki uçtaki dikey hatları seç.", "Merkezdeki yolları boş bırak."]
+    },
+    {
+      "id": 43,
+      "hints": ["İçerideki yatay çizgileri tamamla.", "Sınırların bir adım içindeki sıraları seç.", "İç halkadaki yatay yolları bul."]
+    },
+    {
+      "id": 44,
+      "hints": ["İçerideki dikey çizgileri tamamla.", "Sınırların bir adım içindeki yolları seç.", "İç halkadaki dikey hatları bul."]
+    },
+    {
+      "id": 45,
+      "hints": ["Menekşe renkli dairelerin peşine düş.", "Mor ve yuvarlak olanları seç.", "Gece rengindeki incileri bul."]
+    },
+    {
+      "id": 46,
+      "hints": ["Güneş renkli karelerin peşine düş.", "Sarı ve dört köşeli olanları seç.", "Işığın kutularını bul."]
+    },
+    {
+      "id": 47,
+      "hints": ["Orman renkli dairelerin peşine düş.", "Yeşil ve yuvarlak olanları seç.", "Doğanın incilerini bul."]
+    },
+    {
+      "id": 48,
+      "hints": ["Ters bir diyagonal yolu tamamla.", "Sağ üstten sol alta bir köprü kur.", "Zıt köşelerin arasındaki bağı bul."]
+    },
+    {
+      "id": 49,
+      "hints": ["İçerideki dört köşe noktayı seç.", "Merkezin etrafındaki uçları bul.", "Çerçeve içindeki köşe taşlarını ara."]
+    },
+    {
+      "id": 50,
+      "hints": ["Kalabalık olan renklerin tarafını tut.", "Tabloda en çok görünenleri seç.", "Çoğunluğun sesine kulak ver."]
+    },
+    {
+      "id": 51,
+      "hints": ["Nadir olanların peşinden git.", "Tabloda en az görünenleri seç.", "Azınlığın sessizliğini dinle."]
+    },
+    {
+      "id": 52,
+      "hints": ["Ateş ve denizden uzak dur.", "Kırmızı ve mavi dışındaki her şeyi seç.", "Sıcak ve soğuk olmayanları bul."]
+    },
+    {
+      "id": 53,
+      "hints": ["Yuvarlak olan her şeyden kaç.", "Daire olmayan formları seç.", "Köşesi olanların dünyasına gir."]
+    },
+    {
+      "id": 54,
+      "hints": ["Tek numaralı sıralara odaklan.", "1. ve 3. satırın gücünü seç.", "Bölünmeyen sıraları doldur."]
+    },
+    {
+      "id": 55,
+      "hints": ["Tek numaralı yollara odaklan.", "1. ve 3. sütunun gücünü seç.", "Bölünmeyen yolları doldur."]
+    },
+    {
+      "id": 56,
+      "hints": ["Beşer beşer sayanların yerini bul.", "Toplamı 5 eden koordinatları seç.", "Beşlik ritmin izini sür."]
+    },
+    {
+      "id": 57,
+      "hints": ["Çarpımları tek olanların dünyasını bul.", "Satır ve sütun numarasını çarp ve tek olanı seç.", "Matematiksel bir zıtlık ara."]
+    },
+    {
+      "id": 58,
+      "hints": ["Menekşeler veya yuvarlaklar seni bekliyor.", "Mor olanları veya daireleri seç.", "Gecenin rengine veya formuna odaklan."]
+    },
+    {
+      "id": 59,
+      "hints": ["Deniz rengi ama sivri tepesi yok.", "Mavi olan ama üçgen olmayanları seç.", "Huzurun renginde köşeli olanları bul."]
+    },
+    {
+      "id": 60,
+      "hints": ["Yalnızların ve benzersizlerin tarafını tut.", "Etrafında kendi renginden kimse olmayanları seç.", "Komşularından farklı olanları bul."]
+    },
+    {
+      "id": 61,
+      "hints": ["Benzerleriyle dost olanları seç.", "Komşusuyla aynı şekli paylaşanları bul.", "Form kardeşliğini yakala."]
+    },
+    {
+      "id": 62,
+      "hints": ["Tablonun tam ortasındaki yatay hattı bul.", "Merkezdeki dikey yolu değil, yatay yolu seç.", "Ekvator çizgisini tamamla."]
+    },
+    {
+      "id": 63,
+      "hints": ["Tablonun tam ortasındaki dikey hattı bul.", "Merkezdeki yatay yolu değil, dikey yolu seç.", "Kutup çizgisini tamamla."]
+    },
+    {
+      "id": 64,
+      "hints": ["Üstte çift, altta tek olanları bul.", "Zikzak çizen bir mantıkla ilerle.", "Tablonun iki ucu arasındaki zıtlığı seç."]
+    },
+    {
+      "id": 65,
+      "hints": ["Sadece ana renkleri hatırla.", "Kırmızı, yeşil ve mavi olanları seç.", "Işığın üç temel rengine odaklan."]
+    },
+    {
+      "id": 66,
+      "hints": ["Ara renklerin dünyasına gir.", "Sarı ve mor olanları seç.", "Karışımların gizemini bul."]
+    },
+    {
+      "id": 67,
+      "hints": ["Zirvede veya tabanda olan sivri uçları bul.", "En üst ve en alt satırdaki üçgenleri seç.", "Sınır boyundaki piramitleri ara."]
+    },
+    {
+      "id": 68,
+      "hints": ["En sol veya en sağdaki kutuları seç.", "İki uç dikey hattaki kareleri bul.", "Sınır boyundaki bloklara odaklan."]
+    },
+    {
+      "id": 69,
+      "hints": ["Koordinat toplamı 4'ü aşanları seç.", "Merkezin ötesine geçenleri bul.", "Uzak diyarların hücrelerine dokun."]
+    },
+    {
+      "id": 70,
+      "hints": ["Tam kare olan numaraların yerini bul.", "Matematiğin karesel ritmini seç.", "1, 4, 9 gibi noktaları ara."]
+    },
+    {
+      "id": 71,
+      "hints": ["Koordinatlarında 'sıfır' saklayanları bul.", "En az bir ucu sınıra değenleri seç.", "Başlangıç noktalarına odaklan."]
+    },
+    {
+      "id": 72,
+      "hints": ["Üçüncü sıranın tüm yolcularını seç.", "Merkezin bir adım altındaki satırı bul.", "Üç numaralı yatay hattı tamamla."]
+    },
+    {
+      "id": 73,
+      "hints": ["Üçüncü yolun tüm yolcularını seç.", "Merkezin bir adım sağındaki sütunu bul.", "Üç numaralı dikey hattı tamamla."]
+    },
+    {
+      "id": 74,
+      "hints": ["Çift sıralardaki ateşin rengini bul.", "2. ve 4. satırdaki kırmızıları seç.", "Eşit bölünen elma tonlarını ara."]
+    },
+    {
+      "id": 75,
+      "hints": ["Tek yollardaki denizin rengini bul.", "1. ve 3. sütundaki mavileri seç.", "Bölünmeyen gökyüzü tonlarını ara."]
+    },
+    {
+      "id": 76,
+      "hints": ["Dama düzenindeki tüm yuvarlakları bul.", "Açık karelerdeki daireleri seç.", "Satranç tahtasının incilerini ara."]
+    },
+    {
+      "id": 77,
+      "hints": ["Aradaki ormanların peşine düş.", "En üst ve en alt hariç yeşilleri seç.", "Merkez bölgedeki çimenleri bul."]
+    },
+    {
+      "id": 78,
+      "hints": ["Aradaki menekşelerin peşine düş.", "En sol ve en sağ hariç morları seç.", "Merkez bölgedeki geceleri bul."]
+    },
+    {
+      "id": 79,
+      "hints": ["Koordinat toplamı 3 olanları seç.", "Sınıra çok yakın olan küçük bir grubu bul.", "Az toplamlı gizli hücreleri ara."]
+    },
+    {
+      "id": 80,
+      "hints": ["Tüm sivri tepeleri ve piramitleri seç.", "Üç köşesi olan her forma dokun.", "Sivri uçların dünyasına gir."]
+    },
+    {
+      "id": 81,
+      "hints": ["İmkansız olanın peşinden git.", "Hem kare hem daire olanı seç (İpucu: Hiçbiri).", "Bu seviyede bir şaşırtmaca var."]
+    },
+    {
+      "id": 82,
+      "hints": ["Diyagonalin hemen komşularını bul.", "Merkez çaprazın iki yanına odaklan.", "Ana yolun yandaşlarını seç."]
+    },
+    {
+      "id": 83,
+      "hints": ["Kenarların tam ortasındaki noktaları seç.", "Haç formunun uçlarındaki hücreleri bul.", "Sınırların merkez noktalarına dokun."]
+    },
+    {
+      "id": 84,
+      "hints": ["Diyagonal üzerindeki güneşleri bul.", "Merkez çaprazdaki sarıları seç.", "Altın yolun hücrelerini tamamla."]
+    },
+    {
+      "id": 85,
+      "hints": ["Ters diyagonal üzerindeki ateşi bul.", "Sağ üstten sol alta uzanan kırmızılardır.", "Zıt yolun elmalarını seç."]
+    },
+    {
+      "id": 86,
+      "hints": ["Sivri tepeler ama menekşe değil.", "Mor olmayan tüm üçgenleri seç.", "Renkli piramitlerin menekşe hariç kısmını bul."]
+    },
+    {
+      "id": 87,
+      "hints": ["İnciler ama orman rengi değil.", "Yeşil olmayan tüm daireleri seç.", "Renkli incilerin çimen hariç kısmını bul."]
+    },
+    {
+      "id": 88,
+      "hints": ["Tablonun alt yarısına odaklan.", "2. satırdan aşağısını seç.", "Güney kutbuna doğru ilerle."]
+    },
+    {
+      "id": 89,
+      "hints": ["Tablonun sağ yarısına odaklan.", "2. sütundan sağını seç.", "Doğu yönüne doğru ilerle."]
+    },
+    {
+      "id": 90,
+      "hints": ["3'ün katı olmayan toplamları seç.", "Matematiksel bir dışlanmışlık ara.", "Üçlü ritme uymayanları bul."]
+    },
+    {
+      "id": 91,
+      "hints": ["Deniz, Ateş veya İnciler seni bekliyor.", "Mavi, Kırmızı veya Daire olanları seç.", "Üçlü bir ihtimali birleştir."]
+    },
+    {
+      "id": 92,
+      "hints": ["Kenarlardaki tüm sivri tepeleri bul.", "Dış hattaki üçgenleri seç.", "Sınır boyundaki piramitleri ara."]
+    },
+    {
+      "id": 93,
+      "hints": ["Merkez hariç tüm dış köşeleri seç.", "Göbeği boş bırak, dışarıya odaklan.", "Dış çerçevedeki kritik noktaları bul."]
+    },
+    {
+      "id": 94,
+      "hints": ["Orman renkli kutuları bul.", "Yeşil ve kare olanları seç.", "Doğanın küplerini ara."]
+    },
+    {
+      "id": 95,
+      "hints": ["Menekşe renkli piramitleri bul.", "Mor ve üçgen olanları seç.", "Gece dağlarının zirvelerine dokun."]
+    },
+    {
+      "id": 96,
+      "hints": ["Açık karelerdeki güneşleri bul.", "Dama düzenindeki sarıları seç.", "Işıklı satranç taşlarını ara."]
+    },
+    {
+      "id": 97,
+      "hints": ["Koyu karelerdeki denizi bul.", "Dama düzenindeki mavileri seç.", "Gölgeli satranç taşlarını ara."]
+    },
+    {
+      "id": 98,
+      "hints": ["Üstte ateş, altta deniz olsun.", "En üstte kırmızı, en altta mavileri seç.", "Sıcak ve soğuğun sınırlarını belirle."]
+    },
+    {
+      "id": 99,
+      "hints": ["5x5 dünyasının ters diyagonalini bul.", "Sağ üstten sol alta bir çizgi çek.", "Büyük tablonun zıt köprüsünü kur."]
+    }
+  ]
+}

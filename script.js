@@ -64,6 +64,8 @@ class Game {
         this.currentRule = null;
         this.currentRuleIndex = -1;
         this.user = null;
+        this.hints = null;
+        this.currentHintIndex = 0;
 
         this.dom = {
             appShell: document.querySelector('.app-shell'),
@@ -190,6 +192,14 @@ class Game {
         this.dom.codexBackBtn.onclick = () => { this.playSound('click'); this.backToMenu(); };
         document.body.onclick = () => { if (!this.audioCtx) this.audioCtx = new (window.AudioContext || window.webkitAudioContext)(); };
         this.createParticles();
+        this.loadHints();
+    }
+
+    async loadHints() {
+        try {
+            const response = await fetch('hint.json');
+            this.hints = await response.json();
+        } catch (e) { console.error("Hints load failed:", e); }
     }
 
     initMenu() {
@@ -381,7 +391,18 @@ class Game {
         }
         
         this.startLevelLogic();
-        this.dom.feedback.innerText = this.isDailyMode ? `GÜNLÜK MÜCADELE (Kalan Hak: ${this.dailyAttempts})` : "Gizli kuralı keşfet...";
+        
+        let feedbackText = "Gizli kuralı keşfet...";
+        if (!this.isDailyMode && this.hints && this.hints.normal) {
+            const ruleHints = this.hints.normal.find(h => h.id === this.currentRuleIndex);
+            if (ruleHints && ruleHints.hints) {
+                feedbackText = ruleHints.hints[Math.floor(Math.random() * 3)];
+            }
+        } else if (this.isDailyMode) {
+            feedbackText = `GÜNLÜK MÜCADELE (Kalan Hak: ${this.dailyAttempts})`;
+        }
+        
+        this.dom.feedback.innerText = feedbackText;
         this.dom.feedback.style.color = "var(--text-muted)";
     }
 
@@ -397,7 +418,9 @@ class Game {
         const today = new Date().toISOString().split('T')[0];
         let seed = this.isDailyMode ? parseInt(today.replace(/-/g, '')) : Math.random() * 1000000;
         let valid = false;
-        while (!valid) {
+        let attempts = 0;
+        while (!valid && attempts < 100) {
+            attempts++;
             this.cells = []; this.totalCorrectCells = 0;
             for (let i = 0; i < this.gridSize * this.gridSize; i++) {
                 const rVal = this.isDailyMode ? this.seededRandom(seed++) : Math.random();
@@ -668,7 +691,7 @@ class Game {
             { check: (c) => c.color === 'purple' && c.col > 0 && c.col < c.gridSize-1, desc: "Sol ve sağ kenar hariç morlar" },
             { check: (c) => (c.row + c.col) === 3, desc: "Toplamı 3 eden koordinatlar" },
             { check: (c) => c.shape === 'triangle', desc: "Tüm üçgenler" },
-            { check: (c) => c.shape === 'square' && c.shape === 'circle', desc: "İmkansız kural (Test)" },
+            { check: (c) => c.color !== 'yellow' && c.shape === 'square', desc: "Sarı olmayan kareler" },
             { check: (c) => c.row === c.col + 1 || c.col === c.row + 1, desc: "Ana diyagonalın komşu çizgileri" },
             { check: (c) => (c.row === 0 || c.row === c.gridSize-1) && (c.col === 1 || c.col === c.gridSize-2), desc: "Kenar ortalarındaki hücreler" },
             { check: (c) => c.color === 'yellow' && c.row === c.col, desc: "Diyagonal üzerindeki sarılar" },
